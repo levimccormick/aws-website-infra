@@ -1,0 +1,21 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ProjectShortName:
+    Description: Short name of this project
+    Type: String
+Resources:
+  WebsiteRepo:
+    Type: "AWS::CodeCommit::Repository"
+    Properties:
+      RepositoryDescription: !Sub "Repository for ${ProjectShortName} Static Websites"
+      RepositoryName: !Sub "${ProjectShortName}-website"
+      Triggers:
+      - Name: BuildDeployMaster
+        CustomData:
+          Fn::ImportValue:
+            !Sub "${ProjectShortName}-HostingBucket"
+        DestinationArn: !ImportValue hugo-builder
+        Branches:
+        - master
+        Events:
+        - all

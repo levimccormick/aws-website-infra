@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  RootDomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+  ProjectShortName:
+    Description: Short name of this project
+    Type: String
+  ZoneId:
+    Description: The Zone Id from Route53
+    Type: String
+Conditions:
+  HostedZone: !Not [ !Equals [ !Ref ZoneId, '' ]]
+Resources:
+  HostingBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: LogBucket
+        LogFilePrefix: "S3/"
+  LogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      LifecycleConfiguration:
+        Rules:
+        - Id: GlacierRule
+          Prefix: glacier
+          Status: Enabled
+          ExpirationInDays: '365'
+          Transitions:
+            - TransitionInDays: '30'
+              StorageClass: Glacier
+  myDistribution:
+    Type: 'AWS::CloudFront::Distribution'
+    Properties:
+      DistributionConfig:
+        Origins:
+        - DomainName:
+            !Select [1, !Split ["://", !GetAtt HostingBucket.WebsiteURL ]]
+          Id: myCustomOrigin
+          CustomOriginConfig:
+            HTTPPort: '80'
+            HTTPSPort: '443'
+            OriginProtocolPolicy: http-only
+        Enabled: 'true'
+        HttpVersion: http2
+        DefaultRootObject: index.html
+        Logging:
+          Bucket:
+            !GetAtt LogBucket.DomainName
+          Prefix: CF/
+        Aliases:
+        - Ref: RootDomainName
+        - !Join ['',[ 'www.', !Ref RootDomainName] ]
+        DefaultCacheBehavior:
+          TargetOriginId: myCustomOrigin
+          SmoothStreaming: 'false'
+          ForwardedValues:
+            QueryString: 'false'
+            Cookies:
+              Forward: none
+          ViewerProtocolPolicy: redirect-to-https
+          DefaultTTL: 60
+          MaxTTL: 3600
+          MinTTL: 0
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          SslSupportMethod: sni-only
+          AcmCertificateArn:
+            Fn::ImportValue:
+              !Sub "${ProjectShortName}-SSLCertArn"
+  myDNS:
+    Type: AWS::Route53::RecordSetGroup
+    Condition: HostedZone
+    Properties:
+      HostedZoneName:
+        !Join ['',[!Ref RootDomainName,'.'] ]
+      RecordSets:
+      - Name:
+          Ref: RootDomainName
+        Type: A
+        AliasTarget:
+          HostedZoneId: !Ref ZoneId
+          DNSName:
+            !GetAtt myDistribution.DomainName
+      - Name:
+          !Join ['',[ 'www.', !Ref RootDomainName] ]
+        Type: A
+        AliasTarget:
+          HostedZoneId: !Ref ZoneId
+          DNSName:
+            !GetAtt myDistribution.DomainName
+Outputs:
+  StaticSiteBucket:
+    Description: Bucket for static site
+    Value:
+      Ref: HostingBucket
+    Export:
+      Name: !Join ['-',[Ref: ProjectShortName,'HostingBucket']]

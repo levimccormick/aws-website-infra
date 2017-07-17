@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  RootDomainName:
+    Description: Domain name for your website (example.com)
+    Type: String
+  ProjectShortName:
+    Description: Short name of this project
+    Type: String
+Resources:
+  SSLCert:
+    Type: "AWS::CertificateManager::Certificate"
+    Properties:
+      DomainName:
+        Ref: RootDomainName
+      SubjectAlternativeNames:
+        - !Join ['.',["*", Ref: RootDomainName]]
+Outputs:
+  SSLCert:
+    Description: SSLCertArn output
+    Value:
+      Ref: SSLCert
+    Export:
+      Name: !Join ['-',[Ref: ProjectShortName,'SSLCertArn']]
