@@ -17,12 +17,13 @@ If you want the static-site-stack to create Route53 records, you need to have th
 * [External Resources](#external)
   * [BuildJob](#BuildJob)
 * [Deployment](#deployment)
+  * [Parameters](#parameters)
 
 ## cert-stack
 
 This stack holds the ACM cert for CloudFront.
 
-### ACM
+### ACM <a name="ACM" />
 
 Provides free SSL certificates.
 
@@ -30,15 +31,15 @@ Provides free SSL certificates.
 
 The core of the hosting stacks.
 
-### S3
+### S3 <a name="S3" />
 
 S3 is the hosting platform for the static pages. It's simultaneously scalable and inexpensive. There's also a second bucket for S3 and CloudFront logs.
 
-### CloudFront
+### CloudFront <a name="CloudFront" />
 
 CloudFront provides SSL termination. If you don't want https, this part is unnecessary for the hosting. The benefits are debatable. Important point in this config is that I'm using S3's WebsiteURL instead of the DomainName. This makes the directory reference function properly.
 
-### Route53
+### Route53 <a name="Route53" />
 
 Conditionally creates alias records for the CloudFront endpoint.
 
@@ -46,7 +47,7 @@ Conditionally creates alias records for the CloudFront endpoint.
 
 This stack contains the CodeCommit repo for the code and trigger for the build job. I think in the future, I'll make the trigger conditional so that it doesn't require the build job stack to exist before you can deploy the repo. A quick `update-stack` command after the build job exists should be enough to add the trigger.
 
-### CodeCommit
+### CodeCommit <a name="CodeCommit" />
 
 I went with CodeCommit because it's a free, private repo for small projects. GitHub is a much better choice for large, mature projects, but I wanted to understand CodeCommit's limitations, which are many. The trigger has a custom data property that tells the deploy job which bucket to push to.
 
@@ -54,7 +55,7 @@ I went with CodeCommit because it's a free, private repo for small projects. Git
 
 These resources exist outside the infrastructure stacks.
 
-### BuildJob
+### BuildJob <a name="BuildJob" />
 
 I set up a lambda, written in python, that builds the static site and pushes it to S3. My static sites are developed with [Hugo](gohugo.io), so the Hugo binary is bundled into the lambda package. This lambda is deployed as a separate stack because it's project agnostic. I have many static sites to host in this account, so I made the lambda universal. Not all static websites will use this same build process, so I'm leaving it flexible.
 
@@ -62,7 +63,7 @@ I set up a lambda, written in python, that builds the static site and pushes it 
 
 To deploy these resources, I've supplied a Makefile to deploy the stacks. I didn't put in the effort to make these create/update automatically, so if you need to update a stack, you'll need to modify the cli command to `update-stack`.
 
-### Parameters
+### Parameters <a name="parameters" />
 
 The deploy jobs take a few parameters to fill in the stacks.
 
